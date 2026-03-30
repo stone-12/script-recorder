@@ -279,7 +279,8 @@ async function toggleRecording(){isRecording?stopRecording():await startRecordin
 async function startRecording(){
   try{
     const stream=await navigator.mediaDevices.getUserMedia({audio:true});
-    audioChunks=[];mediaRecorder=new MediaRecorder(stream);
+    audioChunks=[]; const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm': 'audio/mp4';
+    mediaRecorder=new MediaRecorder(stream, {mimeType});
     mediaRecorder.ondataavailable=e=>{if(e.data.size>0)audioChunks.push(e.data);};
     mediaRecorder.onstop=handleStop;mediaRecorder.start(100);isRecording=true;
     document.getElementById('recordBtn').classList.add('recording');
@@ -303,7 +304,8 @@ function stopRecording(){
 }
 
 function handleStop(){
-  audioBlob=new Blob(audioChunks,{type:'audio/webm'});
+  const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
+  audioBlob=new Blob(audioChunks,{type:mimeType});
   document.getElementById('audioPlayback').src=URL.createObjectURL(audioBlob);
   document.getElementById('playbackSection').classList.add('visible');
   updateFilename();showStatus('Recording complete! Preview above then save.','success');
