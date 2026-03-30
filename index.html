@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Voice Script Recorder</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0d0f14;--surface:#161820;--surface2:#1e2028;--border:#2a2d38;
+    --accent:#e8ff47;--accent2:#47ffe0;--text:#f0f2f8;--muted:#6b7080;
+    --danger:#ff4747;--radius:12px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:40px 20px 80px;overflow-x:hidden;}
+  body::before{content:'';position:fixed;top:-200px;left:-200px;width:600px;height:600px;background:radial-gradient(circle,rgba(232,255,71,.06) 0%,transparent 70%);pointer-events:none;z-index:0;}
+  body::after{content:'';position:fixed;bottom:-200px;right:-200px;width:600px;height:600px;background:radial-gradient(circle,rgba(71,255,224,.05) 0%,transparent 70%);pointer-events:none;z-index:0;}
+  .container{width:100%;max-width:820px;position:relative;z-index:1;}
+  header{margin-bottom:44px;}
+  .tag{display:inline-block;font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--accent);background:rgba(232,255,71,.1);border:1px solid rgba(232,255,71,.2);padding:4px 12px;border-radius:100px;margin-bottom:14px;}
+  h1{font-family:'Syne',sans-serif;font-size:clamp(30px,5vw,52px);font-weight:800;line-height:1.05;letter-spacing:-.02em;}
+  h1 span{color:var(--accent);}
+  .subtitle{margin-top:10px;color:var(--muted);font-size:12px;letter-spacing:.03em;}
+  .progress-line{display:flex;align-items:center;gap:10px;margin-bottom:32px;font-size:11px;color:var(--muted);}
+  .prog-item{display:flex;align-items:center;gap:6px;transition:color .3s;}
+  .prog-item.done{color:var(--accent2);}
+  .prog-item.active{color:var(--accent);}
+  .prog-check{width:18px;height:18px;border-radius:50%;border:1px solid currentColor;display:flex;align-items:center;justify-content:center;font-size:9px;flex-shrink:0;}
+  .prog-divider{flex:1;height:1px;background:var(--border);}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:26px;margin-bottom:18px;transition:border-color .2s;}
+  .card.disabled{opacity:.35;pointer-events:none;}
+  .card-label{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+  .card-label::after{content:'';flex:1;height:1px;background:var(--border);}
+  .name-input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:13px 16px;color:var(--text);font-family:'DM Mono',monospace;font-size:14px;outline:none;transition:border-color .2s,box-shadow .2s;}
+  .name-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(232,255,71,.08);}
+  .name-input::placeholder{color:var(--muted);}
+  .lang-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;}
+  .lang-btn{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:13px 14px;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;cursor:pointer;transition:all .2s;text-align:left;display:flex;flex-direction:column;gap:3px;}
+  .lang-btn .lang-native{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;color:var(--text);transition:color .2s;}
+  .lang-btn:hover,.lang-btn.selected{border-color:var(--accent);color:var(--accent);}
+  .lang-btn:hover .lang-native,.lang-btn.selected .lang-native{color:var(--accent);}
+  .lang-btn.selected{background:rgba(232,255,71,.06);}
+  .selection-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:18px;}
+  .selection-tab{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;text-align:left;cursor:pointer;transition:all .2s;color:var(--muted);font-family:'DM Mono',monospace;}
+  .selection-tab:hover{border-color:var(--accent);}
+  .selection-tab.active{border-color:var(--accent);background:rgba(232,255,71,.07);color:var(--text);box-shadow:0 0 0 1px rgba(232,255,71,.12) inset;}
+  .selection-tab-title{font-family:'Syne',sans-serif;font-size:15px;font-weight:700;color:var(--text);margin-bottom:5px;}
+  .selection-tab-copy{font-size:11px;line-height:1.5;color:var(--muted);}
+  .selection-tab.active .selection-tab-copy{color:rgba(240,242,248,.78);}
+  .mode-helper{font-size:11px;color:var(--muted);margin:0 0 14px;line-height:1.6;}
+  .script-list{display:flex;flex-direction:column;gap:10px;}
+  .script-item{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px 18px;cursor:pointer;transition:all .2s;display:flex;align-items:flex-start;gap:14px;}
+  .script-item:hover{border-color:var(--accent2);}
+  .script-item.selected{border-color:var(--accent2);background:rgba(71,255,224,.05);}
+  .script-num{font-family:'Syne',sans-serif;font-size:10px;font-weight:700;color:var(--accent2);background:rgba(71,255,224,.1);border:1px solid rgba(71,255,224,.2);border-radius:4px;padding:2px 7px;flex-shrink:0;margin-top:2px;}
+  .script-info{flex:1;}
+  .script-title{font-size:13px;font-weight:500;color:var(--text);margin-bottom:3px;font-family:'Syne',sans-serif;}
+  .script-desc{font-size:11px;color:var(--muted);line-height:1.5;}
+  .script-item.selected .script-desc{color:var(--text);opacity:.7;}
+  .record-panel{padding:10px 0 0;}
+  .script-display{background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--accent2);border-radius:8px;padding:18px 20px;text-align:left;margin-bottom:28px;font-size:13px;line-height:1.8;color:var(--text);display:none;}
+  .sdlabel{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--accent2);margin-bottom:10px;}
+  .display-title{font-family:'Syne',sans-serif;font-size:20px;font-weight:700;line-height:1.2;margin-bottom:8px;}
+  .display-subtitle{font-size:11px;color:var(--muted);margin-bottom:14px;line-height:1.6;}
+  .med-word-list{list-style:none;counter-reset:med-counter;display:flex;flex-direction:column;gap:10px;padding:4px 0 0;margin:0;}
+  .med-word{list-style:none;display:grid;grid-template-columns:auto 1fr;align-items:start;gap:12px;padding:12px 14px;border:1px solid rgba(240,242,248,.08);border-radius:10px;background:rgba(255,255,255,.02);font-size:16px;line-height:1.45;font-family:'Syne',sans-serif;letter-spacing:.01em;}
+  .med-word::before{counter-increment:med-counter;content:counter(med-counter, decimal-leading-zero);font-family:'DM Mono',monospace;font-size:11px;line-height:1.8;color:var(--accent2);background:rgba(71,255,224,.08);border:1px solid rgba(71,255,224,.16);border-radius:999px;padding:1px 8px;min-width:38px;text-align:center;}
+  .med-word-text{padding-top:1px;}
+  @media (max-width:640px){.selection-tabs{grid-template-columns:1fr;}}
+  .waveform-wrap{height:60px;display:flex;align-items:center;justify-content:center;gap:3px;margin-bottom:20px;}
+  .wave-bar{width:3px;border-radius:2px;background:var(--border);height:8px;transition:background .2s;}
+  .recording .wave-bar{background:var(--accent);animation:wave .6s ease-in-out infinite alternate;}
+  @keyframes wave{from{height:6px;}to{height:50px;}}
+  .recording .wave-bar:nth-child(2n){animation-delay:.1s;}
+  .recording .wave-bar:nth-child(3n){animation-delay:.2s;}
+  .recording .wave-bar:nth-child(4n){animation-delay:.15s;}
+  .recording .wave-bar:nth-child(5n){animation-delay:.3s;}
+  .timer{font-family:'Syne',sans-serif;font-size:38px;font-weight:800;letter-spacing:-.03em;color:var(--muted);margin-bottom:22px;transition:color .3s;text-align:center;}
+  .timer.active{color:var(--accent);}
+  .record-btn{width:76px;height:76px;border-radius:50%;border:3px solid var(--accent);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;margin:0 auto 16px;}
+  .record-btn::after{content:'';width:30px;height:30px;border-radius:50%;background:var(--accent);transition:all .2s;}
+  .record-btn.recording{border-color:var(--danger);animation:pulse 1.2s ease-in-out infinite;}
+  .record-btn.recording::after{background:var(--danger);border-radius:6px;width:22px;height:22px;}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,71,71,.3);}50%{box-shadow:0 0 0 14px rgba(255,71,71,0);}}
+  .record-btn:hover:not(.recording){transform:scale(1.05);box-shadow:0 0 28px rgba(232,255,71,.2);}
+  .record-hint{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:24px;text-align:center;}
+  .playback-section{display:none;margin-top:22px;padding-top:22px;border-top:1px solid var(--border);}
+  .playback-section.visible{display:block;}
+  .playback-label{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;text-align:center;}
+  audio{width:100%;border-radius:4px;margin-bottom:14px;filter:invert(1) hue-rotate(180deg) brightness(.85);}
+  .filename-tag{display:inline-flex;align-items:center;gap:7px;font-size:11px;color:var(--accent2);background:rgba(71,255,224,.06);border:1px solid rgba(71,255,224,.15);border-radius:6px;padding:5px 12px;margin-bottom:14px;}
+  .save-btn{display:inline-flex;align-items:center;gap:9px;background:var(--accent);color:#0d0f14;font-family:'Syne',sans-serif;font-size:13px;font-weight:700;letter-spacing:.05em;padding:13px 28px;border-radius:8px;border:none;cursor:pointer;transition:all .2s;}
+  .save-btn:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(232,255,71,.25);}
+  .status-msg{font-size:12px;padding:10px 14px;border-radius:6px;margin-top:14px;display:none;}
+  .status-msg.success{background:rgba(71,255,224,.08);border:1px solid rgba(71,255,224,.2);color:var(--accent2);display:block;}
+  .status-msg.error{background:rgba(255,71,71,.08);border:1px solid rgba(255,71,71,.2);color:var(--danger);display:block;}
+  .text-center{text-align:center;}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="tag">🎙 Data Collection Tool</div>
+    <h1>Script <span>Recorder</span></h1>
+    <p class="subtitle">South African Languages — Medical Sentence Dataset Collection</p>
+  </header>
+  <div class="progress-line">
+    <div class="prog-item active" id="prog-name"><div class="prog-check">1</div> Your Name</div>
+    <div class="prog-divider"></div>
+    <div class="prog-item" id="prog-lang"><div class="prog-check">2</div> Language</div>
+    <div class="prog-divider"></div>
+    <div class="prog-item" id="prog-script"><div class="prog-check">3</div> Script</div>
+    <div class="prog-divider"></div>
+    <div class="prog-item" id="prog-record"><div class="prog-check">4</div> Record</div>
+  </div>
+  <div class="card" id="nameCard">
+    <div class="card-label">Step 01 — Speaker Name</div>
+    <input class="name-input" type="text" id="speakerName" placeholder="Enter your full name..." autocomplete="off"/>
+  </div>
+  <div class="card disabled" id="langCard">
+    <div class="card-label">Step 02 — Select Language</div>
+    <div class="lang-grid">
+      <button class="lang-btn" data-lang="english" onclick="selectLanguage(this)"><span class="lang-native">English</span><span>English</span></button>
+      <button class="lang-btn" data-lang="afrikaans" onclick="selectLanguage(this)"><span class="lang-native">Afrikaans</span><span>Afrikaans</span></button>
+      <button class="lang-btn" data-lang="zulu" onclick="selectLanguage(this)"><span class="lang-native">isiZulu</span><span>Zulu</span></button>
+      <button class="lang-btn" data-lang="xhosa" onclick="selectLanguage(this)"><span class="lang-native">isiXhosa</span><span>Xhosa</span></button>
+      <button class="lang-btn" data-lang="tswana" onclick="selectLanguage(this)"><span class="lang-native">Setswana</span><span>Tswana</span></button>
+      <button class="lang-btn" data-lang="sepedi" onclick="selectLanguage(this)"><span class="lang-native">Sepedi</span><span>Sepedi / N. Sotho</span></button>
+      <button class="lang-btn" data-lang="sotho" onclick="selectLanguage(this)"><span class="lang-native">Sesotho</span><span>Sotho / S. Sotho</span></button>
+      <button class="lang-btn" data-lang="ndebele" onclick="selectLanguage(this)"><span class="lang-native">isiNdebele</span><span>Ndebele</span></button>
+    </div>
+  </div>
+  <div class="card disabled" id="scriptCard">
+    <div class="card-label">Step 03 — Choose Script</div>
+    <p class="mode-helper" id="modeHelper">Choose one 8-sentence script below. There are 50 scripts in total.</p>
+    <div class="script-list" id="scriptList"></div>
+  </div>
+  <div class="card disabled" id="recordCard">
+    <div class="card-label">Step 04 — Record Your Voice</div>
+    <div class="record-panel">
+      <div class="script-display" id="scriptDisplay">
+        <div class="sdlabel" id="displayLabel">Read this aloud</div>
+        <div class="display-title" id="displayTitle"></div>
+        <div class="display-subtitle" id="displaySubtitle"></div>
+        <div id="scriptReadText"></div>
+      </div>
+      <div class="waveform-wrap" id="waveform">
+        <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+        <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+        <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+        <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+        <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+        <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+        <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+        <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+      </div>
+      <div class="timer" id="timer">00:00</div>
+      <button class="record-btn" id="recordBtn" onclick="toggleRecording()"></button>
+      <div class="record-hint" id="recordHint">Press to start recording</div>
+      <div class="playback-section" id="playbackSection">
+        <div class="playback-label">Preview Recording</div>
+        <audio id="audioPlayback" controls></audio>
+        <div class="text-center" style="margin-bottom:12px;">
+          <div class="filename-tag"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span id="filenameDisplay">—</span></div>
+        </div>
+        <div class="text-center">
+          <button class="save-btn" onclick="saveRecording()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Save as .wav
+          </button>
+        </div>
+        <div class="status-msg" id="statusMsg"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+const SENTENCE_SCRIPTS=[{"id": 1, "title": "Script 01", "desc": "Sentences 1-8", "items": ["I'm going to put you on Be-Tabs Prednisone for five days to bring down the inflammation.", "Take the prednisone with food, otherwise it can upset your stomach.", "I'm prescribing Augmentin BD twice a day for seven days for that chest infection.", "The Augmentin should clear up the sinusitis within a week.", "You can take a Stilpane for the pain, but don't take more than four a day.", "The Stilpane has codeine in it, so don't drive if it makes you drowsy.", "The Synaleve should help with the back pain — take one every six hours.", "Since it has codeine in it, try not to use it for more than three days at a stretch."]}, {"id": 2, "title": "Script 02", "desc": "Sentences 9-16", "items": ["I'm giving you Zithromax — it's only a three-day course but it's very effective for this type of infection.", "The azithromycin is a short course, just three days, but it keeps working in your body for about a week.", "I want you to use the Betadexamine spray on the rash twice a day.", "The betamethasone cream will reduce the swelling and itching quite quickly.", "Your cholesterol is a bit high, so I'm starting you on Aspavor ten milligrams.", "The atorvastatin works best if you take it at night before bed.", "I'm going to give you a short course of Panafcort to help with the severe inflammation.", "The prednisone tablets must be taken with food and you should not stop them abruptly."]}, {"id": 3, "title": "Script 03", "desc": "Sentences 17-24", "items": ["You can take a Mybulen for the headache — it has ibuprofen and paracetamol together.", "This combination tablet works well for tension headaches, just make sure you've eaten first.", "I'm putting you on a five-day course of Aspelone for the swelling in your joints.", "The prednisolone is a steroid so we want to use it for the shortest time possible.", "The Urbanol will help with your anxiety — just take half a tablet when you feel very anxious.", "The clobazam can make you a bit sleepy at first, so be careful when driving.", "The Alcophyllex syrup will help to open your airways and loosen the chest mucus.", "This cough syrup contains theophylline which helps relax the bronchial muscles."]}, {"id": 4, "title": "Script 04", "desc": "Sentences 25-32", "items": ["I want you to take a Ecotrin every day — the low dose aspirin is good for your heart.", "The aspirin is enteric-coated so it's easier on your stomach.", "You need to take your Euthyrox every morning on an empty stomach, at least thirty minutes before breakfast.", "The levothyroxine dose needs to be consistent — take it the same time every day.", "I'm prescribing Austell Azithromycin for your throat infection — it's just one tablet a day for three days.", "The azithromycin can sometimes cause a bit of nausea, so take it with food.", "Since you can't take regular anti-inflammatories, I'll put you on Celebrex which is gentler on the stomach.", "The celecoxib is a COX-2 inhibitor, so it's less likely to cause stomach ulcers."]}, {"id": 5, "title": "Script 05", "desc": "Sentences 33-40", "items": ["The Entiro will help settle your stomach and sort out the diarrhoea.", "Make sure you're drinking plenty of fluids and taking the Entiro as directed.", "I want you to start on Exinef for your blood pressure — take it once a day in the morning.", "The enalapril might cause a dry cough in some people — let me know if that happens.", "Use the Genemist inhaler — two puffs in the morning and two at night for your asthma.", "The fluticasone inhaler is a preventer, so you need to use it every day even when you feel fine.", "I'm prescribing Sandoz Co-Amoxyclav for the infection — take it twice daily with food.", "The amoxicillin-clavulanate is a broad-spectrum antibiotic so try to take probiotics as well."]}, {"id": 6, "title": "Script 06", "desc": "Sentences 41-48", "items": ["Your vitamin D is very low, so I'm giving you Calciferol drops to supplement it.", "Take the vitamin D supplement with a meal that contains fat for better absorption.", "Take a Gen-Payne for the pain — it's got paracetamol, aspirin, and codeine in it.", "This codeine combination works well for stronger pain but avoid it if you need to drive.", "Start with two Panado tablets and see if that brings the fever down.", "The paracetamol is safe to take every four to six hours but don't exceed eight tablets in a day.", "I'm prescribing Trepiline at a low dose to help with the nerve pain and to improve your sleep.", "The amitriptyline at this low dose is not for depression — we're using it specifically for the pain."]}, {"id": 7, "title": "Script 07", "desc": "Sentences 49-56", "items": ["Nebulise the Duolin Respules three times a day when you're having a bad flare-up.", "The ipratropium and salbutamol combination will open your airways much faster than a puffer alone.", "The Trolic will help with the urinary tract infection — take the full course even if you feel better.", "The nitrofurantoin must be taken with food to reduce the chance of nausea.", "Spray the Flomist into each nostril once a day — it works best if you use it consistently.", "The fluticasone nasal spray takes a few days to reach full effect, so don't stop using it too soon.", "Give the child the Prospan Cough syrup — it's a herbal one so it's gentle and safe.", "This ivy leaf extract syrup is good for productive coughs and perfectly safe for kids."]}, {"id": 8, "title": "Script 08", "desc": "Sentences 57-64", "items": ["You need to take your Eltroxin every morning before eating — your thyroid levels are low.", "The levothyroxine controls your thyroid function, so missing doses will make you feel very tired.", "I'm adding Amloc five milligrams to your blood pressure treatment — take it once a day.", "The amlodipine can sometimes cause ankle swelling — let me know if that becomes a problem.", "Spray the Andolex-C directly onto the back of your throat every three hours for the soreness.", "The benzydamine spray will numb the throat a little and reduce the inflammation.", "I'm switching you to Glucophage XR — the extended release version is better tolerated.", "The extended release metformin causes fewer stomach side effects so you should find it easier to take."]}, {"id": 9, "title": "Script 09", "desc": "Sentences 65-72", "items": ["The Puricos will lower your uric acid levels and prevent future gout attacks.", "Don't start the allopurinol during an acute gout attack — we wait until it's settled first.", "Since you've had flu symptoms for less than forty-eight hours, I'm giving you Tamiflu — it will shorten the illness.", "The oseltamivir works best when started early, within the first two days of symptoms.", "The Mypaid Forte is stronger than regular Mypaid so take only one tablet at a time.", "The regular Mypaid should be enough for mild pain — keep the forte for when it's really bad.", "The Trustan will help with the itch and the hives — take one tablet at night.", "The loratadine is non-drowsy so you can also take it in the morning if needed."]}, {"id": 10, "title": "Script 10", "desc": "Sentences 73-80", "items": ["Take Flustat at the first sign of flu — it has paracetamol and decongestant in it.", "This flu combination tablet has everything in one, so don't take extra Panado on top of it.", "Take the Reuterina Acute drops while you're on antibiotics to protect your gut bacteria.", "The Lactobacillus reuteri probiotic will help prevent diarrhoea from the antibiotic.", "Give the child the Adco-Linctopent syrup — five mils three times a day for the cough.", "The pentoxyverine cough syrup will suppress the dry irritating cough at night.", "Use the Iliadin Meter nasal spray — one spray in each nostril, not more than three days.", "Don't use the oxymetazoline spray for more than three days or you'll get rebound congestion."]}, {"id": 11, "title": "Script 11", "desc": "Sentences 81-88", "items": ["I'm starting you on Lexamil ten milligrams for the depression and anxiety — it takes about two weeks to kick in.", "The escitalopram is well tolerated — you might feel a bit anxious in the first week but that settles.", "The Serdep is an antidepressant — we start on fifty milligrams and may increase after a month.", "The sertraline can cause some nausea initially, so take it with food.", "Take the Omez first thing in the morning before breakfast — it protects your stomach.", "The omeprazole needs about thirty minutes before eating to work properly.", "I'm prescribing Mylan Metformin for your sugar — take it twice a day with meals.", "Your metformin dose will be adjusted as we check your blood sugar over the next few months."]}, {"id": 12, "title": "Script 12", "desc": "Sentences 89-96", "items": ["Take the ACC 200 three times a day to thin out that thick mucus in your chest.", "If the ACC 200 is not strong enough, we can switch you to ACC 600 which you only take once a day.", "The Adco-Salterpyn has aspirin in it so don't take it if you have stomach problems.", "This aspirin and paracetamol combination works well for headaches and mild fever.", "The Painamol green tablets are fine for a mild headache — take two with some water.", "Paracetamol is one of the safest painkillers — you can take it even on an empty stomach.", "Nebulise the Budoneb twice a day with the nebuliser machine — it reduces the airway inflammation.", "The budesonide nebules are a steroid inhaler for the lungs — use them consistently for best effect."]}, {"id": 13, "title": "Script 13", "desc": "Sentences 97-104", "items": ["The Coxleon is good for your arthritis pain — take one tablet with food once a day.", "The etoricoxib is an anti-inflammatory that is kinder on the stomach than traditional NSAIDs.", "Take the Allecet once a day for the hay fever — it should stop the sneezing and runny nose.", "The cetirizine can cause a little drowsiness in some people, so take it at night if that's the case.", "The Bilocor is for your heart rate and blood pressure — take it once every morning.", "The bisoprolol will slow your heart rate down slightly — that's normal and expected.", "I'm giving you the Urizone Single dose — just one sachet for the bladder infection.", "The fosfomycin single-dose sachet is very convenient for UTIs — just mix it in water and drink."]}, {"id": 14, "title": "Script 14", "desc": "Sentences 105-112", "items": ["Take the Adco-Alzam only when you really need it — it's for acute anxiety and panic attacks.", "The alprazolam is habit-forming so we only use it short-term for severe anxiety.", "The Spiractin is a water tablet that also helps with your heart failure — take it in the morning.", "The spironolactone can raise your potassium levels, so we'll monitor your bloods regularly.", "Take the Enterogermina Family vials while you're on antibiotics to restore your gut flora.", "The Bacillus clausii probiotic vials can be taken with or without food and are safe for the whole family.", "The Diaglucide MR controls your blood sugar throughout the day — take it with breakfast.", "The gliclazide MR is a once-daily diabetic tablet that's taken with your morning meal."]}, {"id": 15, "title": "Script 15", "desc": "Sentences 113-120", "items": ["The Topraz will help with your acid reflux — take it thirty minutes before your first meal.", "The pantoprazole is a proton pump inhibitor — very effective for reflux and stomach ulcers.", "I'm prescribing Austell Amoxicillin for the ear infection — give it three times a day for five days.", "Make sure your child finishes the full amoxicillin course even if they feel better after a few days.", "The Xefo Rapid is a fast-acting anti-inflammatory — take one tablet with food when needed.", "The lornoxicam tablet works quickly for pain — you should feel relief within thirty minutes.", "Use the Cilodex drops in your ear twice a day for five days to clear the infection.", "The antibiotic and steroid ear drops will clear the infection and reduce the inflammation."]}, {"id": 16, "title": "Script 16", "desc": "Sentences 121-128", "items": ["Nebulise the Pulmicort once a day as a preventer — it keeps the airways calm.", "The budesonide nebuliser is an inhaled steroid so it works locally without major systemic effects.", "Take a Mypaid for the headache — two tablets should do it.", "The paracetamol-codeine combination is effective for moderate pain but can cause constipation.", "Take the ACC 600 once a day in the morning — it'll loosen that chest congestion nicely.", "If you prefer to take something more frequently, the ACC 200 three times a day works just as well.", "I'm giving you Cipla Azithromycin — just one tablet a day for three days.", "The Zithromax brand is the same antibiotic — both work equally well for this infection."]}, {"id": 17, "title": "Script 17", "desc": "Sentences 129-136", "items": ["For your child's ear infection I'm prescribing Augmentin ES 600 — it's the higher strength for resistant bacteria.", "We're using the ES version rather than the regular Augmentin BD because of the child's weight.", "The Ridaq is a mild water tablet for your blood pressure — take it in the morning.", "The hydrochlorothiazide will make you urinate more frequently at first, but that settles down.", "Take the Sinuend twice a day — it will reduce the sinus swelling and help with the pressure.", "This decongestant tablet works better for sinus congestion than the sprays for long-term use.", "I'm prescribing Betamox for the chest infection — take it three times a day for seven days.", "The amoxicillin is a penicillin-type antibiotic — let me know if you develop a rash."]}, {"id": 18, "title": "Script 18", "desc": "Sentences 137-144", "items": ["The Adco-Zolpidem will help you fall asleep — just take it right before you get into bed.", "The zolpidem is only for short-term use — we don't want you taking it every night for more than two weeks.", "I'm adding Kantrexil to your regimen for the resistant UTI — take it twice daily.", "The nalidixic acid is an older antibiotic but it's still effective for certain urinary tract infections.", "The Amuco syrup will help loosen the phlegm — take ten mils three times a day.", "The ambroxol is a mucolytic — it makes the mucus thinner so it's easier to cough up.", "The Broncol Cough syrup is good for that dry irritating cough — take ten mils every six hours.", "This dextromethorphan-based syrup suppresses the cough reflex so you can get some rest."]}, {"id": 19, "title": "Script 19", "desc": "Sentences 145-152", "items": ["Take a Buscopan for the cramps — it should ease the spasm within twenty minutes.", "The hyoscine butylbromide relaxes the smooth muscle in your gut — very effective for IBS and period pain.", "I'm prescribing the Aspen azithromycin — same antibiotic, just a different manufacturer.", "The Zithromax is the brand name version of the same azithromycin antibiotic.", "The Zinnat is a good antibiotic for that sinus infection — take it twice a day for ten days.", "The cefuroxime is a second-generation cephalosporin and works well when amoxicillin isn't enough.", "Take a Scopex for the stomach cramps — it works fast and relaxes the gut.", "The hyoscine in Scopex is the same ingredient as Buscopan — just a different brand."]}, {"id": 20, "title": "Script 20", "desc": "Sentences 153-160", "items": ["Take the Austell Ibuprofen with food — two tablets three times a day for the inflammation.", "The ibuprofen will help with both the pain and the inflammation, but always take it with food.", "Use the Avamys spray — one puff in each nostril once a day for the allergic rhinitis.", "The fluticasone furoate nasal spray is one of the best options for year-round nasal allergies.", "Take the Texa Allergy tablet once a day — it should stop the allergic reaction.", "The cetirizine is a non-sedating antihistamine so you can take it during the day without feeling drowsy.", "The Ivedal will help you sleep — take it only when you really can't fall asleep.", "The zolpidem is habit-forming, so we keep it for when the insomnia is really affecting your daily life."]}, {"id": 21, "title": "Script 21", "desc": "Sentences 161-168", "items": ["The Ibumax Cold and Flu has everything in one tablet — it'll help with the fever, aches, and congestion.", "This ibuprofen and decongestant combination is good for flu symptoms but don't take extra pain tablets on top.", "Take the Inteflora capsules for the next two weeks to restore your gut after the antibiotics.", "These probiotic capsules contain multiple strains that help rebuild your intestinal flora.", "The Adco-Metronidazole will clear up that gut infection — take it three times a day for seven days.", "Do not drink any alcohol while on the metronidazole — even a small amount can cause a very unpleasant reaction.", "I'm giving you Klacid XL — the once-daily extended release version is easier to take.", "The clarithromycin XL is a good choice for chest infections and atypical pneumonia."]}, {"id": 22, "title": "Script 22", "desc": "Sentences 169-176", "items": ["The Hyospasmol drops are good for baby's colic — give fifteen drops before each feed.", "The hyoscine drops help relax the baby's intestinal spasms that cause colic.", "Use the Symbicord Turbohaler two puffs morning and night — it's both a preventer and reliever.", "The budesonide and formoterol combination keeps your asthma controlled and can also be used for relief.", "Take the Allerway once a day — it should sort out the hives and the itching.", "The levocetirizine is a stronger antihistamine and usually works better for severe allergic reactions.", "Take one Allergex at night — it's sedating but very effective for the allergy.", "The chlorpheniramine will make you drowsy so it's best taken at bedtime."]}, {"id": 23, "title": "Script 23", "desc": "Sentences 177-184", "items": ["The Myprocam will help with the muscle spasm in your back — take one tablet three times a day.", "The methocarbamol muscle relaxant can cause drowsiness, so don't take it before driving.", "Take the Nurika capsule once a day to help with the IBS symptoms.", "The peppermint oil capsules are enteric-coated so they release in the intestine where they're needed.", "I want you to take the Tasectan sachets — they'll help stop the diarrhoea quickly.", "The gelatin tannate sachets form a protective lining in the gut and reduce stool frequency.", "Take the Adco-Simvastatin at night before bed — it works best when taken in the evening.", "The simvastatin is your cholesterol medication — don't eat grapefruit while taking it."]}, {"id": 24, "title": "Script 24", "desc": "Sentences 185-192", "items": ["I'm prescribing Doxycyl for the chest infection — take it twice a day with plenty of water.", "The doxycycline can irritate your oesophagus so always take it with a full glass of water and don't lie down for thirty minutes after.", "The Clacee is a clarithromycin antibiotic — take it twice a day for ten days.", "The clarithromycin works well for atypical chest infections that don't respond to amoxicillin.", "Take the Sinucon twice a day to relieve the sinus congestion and pressure.", "The pseudoephedrine component in this tablet is a decongestant — don't take it too close to bedtime.", "I'm prescribing Austell Co-Amoxiclav BD twice a day for the tooth abscess.", "The co-amoxiclav is a strong antibiotic combination — take it with food to avoid an upset stomach."]}, {"id": 25, "title": "Script 25", "desc": "Sentences 193-200", "items": ["Give the child Rhineton syrup for the runny nose — five mils twice a day.", "The triprolidine-based syrup will dry up the nasal secretions but might make the child a little drowsy.", "Apply the Scheriproct ointment to the haemorrhoids twice a day after going to the bathroom.", "This prednisolone and cinchocaine ointment reduces inflammation and numbs the pain from piles.", "Use two sprays of Ryaltris in each nostril once a day for your allergic rhinitis.", "This combination nasal spray has both a steroid and an antihistamine which gives better allergy control.", "Take the Cipla Simvastatin once at night — it's your cholesterol tablet.", "The simvastatin works while you sleep when the liver produces most of its cholesterol."]}, {"id": 26, "title": "Script 26", "desc": "Sentences 201-208", "items": ["Take the Adco-Contromet for the nausea — it works very quickly.", "The metoclopramide also helps move food through your stomach faster which reduces reflux.", "Use the Iliadin Kids nasal spray — one spray in each nostril for the blocked nose, not more than three days.", "The oxymetazoline spray for children is a lower concentration than the adult version — don't confuse them.", "Take the Peploc once a day before breakfast for the stomach ulcer.", "The famotidine is an H2 blocker that reduces stomach acid — very effective for ulcers and reflux.", "Use the Asthavent Ecohaler when you're short of breath — two puffs and wait fifteen minutes.", "The salbutamol puffer is your rescue inhaler — always keep it with you."]}, {"id": 27, "title": "Script 27", "desc": "Sentences 209-216", "items": ["I'm prescribing Clamentin for the sinusitis — take it twice a day for ten days.", "The amoxicillin-clavulanate combination is effective when ordinary amoxicillin hasn't worked.", "Take one Bayer Aspirin Cardio tablet every day — it's a low dose that helps prevent heart attacks.", "The low-dose aspirin one hundred milligrams is your daily blood thinner for heart protection.", "Give the child Monte-Air once at night — it helps with the allergic asthma and hay fever.", "The montelukast tablet is chewable for children and works well for both asthma and allergy symptoms.", "Apply the Advantan cream to the eczema patch once a day — a thin layer is all you need.", "This steroid cream is quite potent so only use it on the affected area for a short time."]}, {"id": 28, "title": "Script 28", "desc": "Sentences 217-224", "items": ["The Prexum is for your blood pressure — take it every morning with or without food.", "The perindopril is an ACE inhibitor and is also protective for your kidneys.", "The Dopaquel will help with the nausea and vomiting — take it thirty minutes before meals.", "The domperidone improves gastric emptying and helps control nausea effectively.", "Take a Corenza C for the cold — it has vitamin C and decongestant which should help.", "The Corenza has everything you need for cold symptoms — just don't take extra tablets on top of it.", "The Reydin will help with the GERD — take it once a day before your first meal.", "The rabeprazole is a proton pump inhibitor — very effective for persistent acid reflux."]}, {"id": 29, "title": "Script 29", "desc": "Sentences 225-232", "items": ["The Stresam will help with your anxiety without making you too drowsy — take it three times a day.", "The etifoxine works differently from benzodiazepines and is not habit-forming.", "I'm prescribing Vimovo — it has naproxen and omeprazole together to protect your stomach.", "The naproxen-esomeprazole combination is ideal for arthritis patients who need an anti-inflammatory but have a sensitive stomach.", "Take the Fexo once a day for the chronic hives — it's non-drowsy and very effective.", "The fexofenadine antihistamine is one of the least sedating options for allergy treatment.", "The Norflex Co has both the muscle relaxant and anti-inflammatory — take one three times a day.", "This combination tablet is very useful for acute back pain and muscle injury."]}, {"id": 30, "title": "Script 30", "desc": "Sentences 233-240", "items": ["Take the Azero once a day for your blood pressure — it's a calcium channel blocker.", "The amlodipine works by relaxing the blood vessels to lower your blood pressure.", "I'm prescribing Orelox for the chest infection — take it twice a day for seven days.", "The cefpodoxime is a third-generation cephalosporin and works well for resistant respiratory infections.", "Take the Clopamon before meals to help with the nausea and slow stomach emptying.", "The metoclopramide is a prokinetic — it speeds up stomach emptying and helps prevent reflux.", "I'm giving you Amoclan BID twice a day for the infected wound.", "The amoxicillin-clavulanate is a broad-spectrum antibiotic that covers skin and soft tissue infections well."]}, {"id": 31, "title": "Script 31", "desc": "Sentences 241-248", "items": ["Apply the Dovate cream to the inflamed skin once a day — just a thin layer.", "The clobetasol is a strong topical steroid — don't use it on the face and only for short periods.", "Use the Persivate ointment on the psoriasis plaques twice a day to reduce scaling and redness.", "The betamethasone is an effective topical steroid for inflammatory skin conditions.", "I'm giving you Neurobion injections for the nerve pain — it's a combination of B vitamins.", "The B1, B6, and B12 vitamin complex is helpful for peripheral neuropathy and nerve repair.", "Take the Expigen cough syrup — it thins the mucus and makes it easier to cough up.", "The guaifenesin-based syrup is an expectorant that helps productively clear congestion from the chest."]}, {"id": 32, "title": "Script 32", "desc": "Sentences 249-256", "items": ["I'm prescribing Orelox Junior for the child's ear infection — give it twice a day.", "The paediatric cefpodoxime suspension is easier to give to children and tastes better than tablets.", "Take the Ranclav twice a day with food for the dental abscess.", "The co-amoxiclav will cover the mixed bacteria typically found in dental infections.", "Take the diclofenac fifty milligrams three times a day with food for the inflammation.", "The Voltaren is the brand name for diclofenac — same medication, just from a different manufacturer.", "I'm prescribing Ciploxx five hundred milligrams for the urinary tract infection.", "The ciprofloxacin is a quinolone antibiotic — take it twice a day and drink plenty of water."]}, {"id": 33, "title": "Script 33", "desc": "Sentences 257-264", "items": ["Take the Lancap capsule once a day before breakfast for the acid reflux.", "The lansoprazole is a proton pump inhibitor — very effective for GERD and stomach ulcers.", "I'm prescribing Adco-Prolief for the period pain — take it from the first day of your cycle.", "The mefenamic acid is specifically good for menstrual cramps and heavy periods.", "We can try Relislim as part of your weight management plan alongside diet and exercise.", "The phentermine is an appetite suppressant — it's only for short-term use and not suitable for everyone.", "I'm starting you on Nuzak twenty milligrams for the depression — we'll review in a month.", "The fluoxetine takes about two to four weeks to start working — don't stop it if you don't feel better immediately."]}, {"id": 34, "title": "Script 34", "desc": "Sentences 265-272", "items": ["For your child's severe ear infection I'm using the Austell Co-Amoxiclav ES six hundred.", "The Augmentin ES six hundred is the high-dose version for resistant infections in children.", "Use the Flonase spray in each nostril once a day — it will reduce the nasal allergy symptoms.", "The fluticasone propionate nasal spray is safe for long-term daily use and very effective.", "The Toplep is for your migraines and seizures — we start low and increase the dose slowly.", "The topiramate can cause some cognitive side effects initially — word-finding difficulties are common.", "Take the Norflex for the muscle spasm in your neck — it'll relax the tight muscles.", "The orphenadrine is a muscle relaxant and can cause dry mouth and mild drowsiness."]}, {"id": 35, "title": "Script 35", "desc": "Sentences 273-280", "items": ["The Bio-Metronidazole will treat the trichomoniasis — take it as a single large dose.", "Don't drink alcohol with the metronidazole — even a small amount can make you very sick.", "The Zofer Rapitab dissolves under the tongue quickly — use it for breakthrough nausea.", "The ondansetron rapid dissolving tablet is very convenient for nausea during chemotherapy or gastro.", "I'm prescribing Auro-Fluconazole — one capsule for the fungal infection should clear it up.", "The single dose fluconazole capsule for thrush is very effective — you should notice improvement within two days.", "The Adco-Napamol sachets are convenient — just dissolve one in water for pain relief.", "The paracetamol sachets are easy to use and well-tolerated for pain and fever management."]}, {"id": 36, "title": "Script 36", "desc": "Sentences 281-288", "items": ["Give the child Phenergan syrup at night — it'll help with the allergy and also help them sleep.", "The promethazine syrup is an old antihistamine but it works very well for allergies and as a mild sedative.", "Take the Austell Amlodipine once a day for your blood pressure.", "The amlodipine may cause your ankles to swell slightly — let me know if that happens.", "The Prexum 5 Plus combines two blood pressure medications in one tablet.", "The perindopril and indapamide combination is very effective for blood pressure control.", "Take the Dormonoct just before bed — it's a sleeping tablet for short-term use only.", "The loprazolam is a benzodiazepine sleeping tablet — don't use it more than two weeks in a row."]}, {"id": 37, "title": "Script 37", "desc": "Sentences 289-296", "items": ["Apply the Chloramex powder to the wound to prevent infection.", "The chloramphenicol is a topical antibiotic that works well for minor skin infections.", "Apply the Supiroban ointment to the infected skin area three times a day.", "The mupirocin ointment is very effective for impetigo and localised skin infections.", "I'm prescribing Austell Tramadol for the severe pain — take it every six hours as needed.", "The tramadol is a strong painkiller — it can cause dizziness and nausea so start with the lower dose.", "The Mylan Indapamide is a diuretic for your blood pressure — take it in the morning.", "The indapamide will lower your blood pressure and may reduce ankle swelling."]}, {"id": 38, "title": "Script 38", "desc": "Sentences 297-304", "items": ["Take the Altosec once a day — it'll protect your stomach while you're on the anti-inflammatories.", "The omeprazole reduces acid production and is essential if you're taking NSAIDs long-term.", "The Carloc is a beta-blocker for your heart — take it once a day with food.", "The carvedilol helps your heart work more efficiently and reduces the workload on it.", "Take a Myoprin for the migraine — it has ibuprofen and codeine together.", "This ibuprofen-codeine combination tablet is more effective for migraines than plain ibuprofen.", "Take the Histacon syrup for the allergy — ten mils three times a day.", "The chlorpheniramine syrup is an older antihistamine but very effective — it will cause drowsiness."]}, {"id": 39, "title": "Script 39", "desc": "Sentences 305-312", "items": ["The Librax will help with the irritable bowel syndrome — take it before meals.", "This combination of a muscle relaxant and a mild tranquilliser works well for IBS-related cramping and anxiety.", "I'm prescribing Cifran five hundred for the urinary tract infection — twice a day for five days.", "The ciprofloxacin is very effective for UTIs and kidney infections — drink lots of water with it.", "The Zartan is for your blood pressure — take fifty milligrams once a day.", "The losartan is an angiotensin receptor blocker — it's also protective for your kidneys.", "Take one Adco-Napacod for the severe pain — it has both paracetamol and codeine.", "The paracetamol-codeine combination is useful for moderate to severe pain but avoid it if you need to drive."]}, {"id": 40, "title": "Script 40", "desc": "Sentences 313-320", "items": ["Take two Adco-Loperamide capsules for the diarrhoea — then one after each loose stool.", "The loperamide slows down gut motility — very effective for acute diarrhoea but don't use it if there's blood in the stool.", "Give the child the Entiro Chews — they're chewable and easier for kids to take.", "The Entiro Junior chews are a convenient alternative to syrup for children who won't swallow tablets.", "Take the Vomiz D for the nausea and vomiting — it works very well for travel sickness too.", "The promethazine and pyridoxine combination is also effective for morning sickness in early pregnancy.", "The Lyrica will help with the nerve pain in your legs — we start on seventy-five milligrams twice a day.", "The pregabalin is used for nerve pain and also has a calming effect that can help with anxiety."]}, {"id": 41, "title": "Script 41", "desc": "Sentences 321-328", "items": ["Dissolve the Rehidrat sachet in water and drink it slowly — it will replace the salts you've lost.", "The oral rehydration solution is the most important treatment for diarrhoea and dehydration.", "I'm prescribing Ciprobay five hundred milligrams for the kidney infection — take it twice a day.", "The ciprofloxacin is effective for kidney and urinary tract infections — complete the full course.", "Take the Austell Cetirizine once a day for the hay fever — it should help within an hour.", "The cetirizine antihistamine is good for runny nose, sneezing, and itchy eyes.", "The Bronkese Compound syrup is good for the chesty cough — take ten mils four times a day.", "This compound cough syrup contains a mucolytic and bronchodilator to help clear the chest."]}, {"id": 42, "title": "Script 42", "desc": "Sentences 329-336", "items": ["Take the Ranega once a day for your blood pressure — it also protects against fluid retention.", "The ramipril is an ACE inhibitor that's also good for people with mild kidney disease.", "Take the Probiflora Rx capsules for two weeks after the antibiotics to restore your gut.", "This high-strength probiotic is specifically designed to replenish gut bacteria after antibiotic treatment.", "The Urispas will help with the bladder spasm and urgency — take it three times a day.", "The flavoxate relaxes the bladder muscle and reduces the burning sensation with urination.", "I want you to take a probiotic while you're on the antibiotics to prevent diarrhoea.", "The Lactobacillus supplement will help maintain your gut flora during antibiotic treatment."]}, {"id": 43, "title": "Script 43", "desc": "Sentences 337-344", "items": ["Give the Nurofen for Children strawberry syrup — five mils for the fever and sore throat.", "The ibuprofen syrup reduces fever and pain in children — check the dose based on their weight.", "The Vusor is for your gout — take it once a day to keep the uric acid levels low.", "The febuxostat is an alternative to allopurinol for patients who can't tolerate it.", "Take the Zuvamor at night for your cholesterol — twenty milligrams to start.", "The rosuvastatin is a potent statin that works well even at low doses.", "The Neucon capsules will help with the nerve pain and support nerve recovery.", "The combined B vitamins in this supplement are essential for nerve function and repair."]}, {"id": 44, "title": "Script 44", "desc": "Sentences 345-352", "items": ["I'm starting you on Cilift twenty milligrams for the depression and anxiety.", "The citalopram is an SSRI that works well for both depression and anxiety disorders.", "Take a spoonful of the Adco-Mayogel after meals for the heartburn and acidity.", "This antacid suspension neutralises stomach acid and coats the oesophagus.", "Apply the Soskain lotion to the affected skin area to relieve the itch and irritation.", "The calamine lotion is soothing and cooling for skin irritation, rashes, and insect bites.", "I'm prescribing Austell Ciprofloxacin for the urinary tract infection.", "The ciprofloxacin should clear the UTI within three to five days."]}, {"id": 45, "title": "Script 45", "desc": "Sentences 353-360", "items": ["Take the Activovite Complete once a day as your multivitamin supplement.", "A good multivitamin supplement is especially important if your diet is not balanced.", "I'm prescribing Purbac DS — it's a double-strength antibiotic for the urinary infection.", "The cotrimoxazole double strength is effective for UTIs and certain chest infections.", "The Trenvir is your HIV treatment — take it once a day at the same time every day.", "Your antiretroviral must be taken consistently — missing doses can cause the virus to become resistant.", "Take the Coxflam for the arthritis pain — once a day with food.", "The meloxicam is a preferential COX-2 inhibitor so it's a bit gentler on the stomach than regular NSAIDs."]}, {"id": 46, "title": "Script 46", "desc": "Sentences 361-368", "items": ["Insert the Empaped suppository for the child's fever — it works well when they won't take tablets.", "The paracetamol suppository is a good option for babies or children who vomit their medication.", "I'm starting you on Glucophage five hundred milligrams twice a day for your diabetes.", "The metformin is the first-line treatment for type two diabetes and also helps with weight control.", "Give the Coryx Paediatric syrup for the runny nose and allergy — five mils twice a day.", "This paediatric antihistamine and decongestant syrup is safe for young children.", "I'm prescribing Austell Co-Amoxiclav for the skin infection — take it twice a day for seven days.", "The co-amoxiclav is a strong penicillin-based antibiotic that covers a wide range of bacteria."]}, {"id": 47, "title": "Script 47", "desc": "Sentences 369-376", "items": ["Take one Fluzol capsule — a single dose should clear up the vaginal thrush.", "The fluconazole single dose works from the inside for systemic treatment of thrush.", "Take the Benylin cough syrup for the dry tickly cough — ten mils every four hours.", "This cough syrup has an antihistamine component that also helps to dry up post-nasal drip.", "Put one drop of Tobradex into the eye three times a day to clear the infection.", "The antibiotic and steroid eye drops will treat the bacterial infection and reduce the redness.", "Take the Zofer for the nausea — it's very effective and starts working quickly.", "The ondansetron is one of the best anti-nausea medications available — used for chemo and severe gastro."]}, {"id": 48, "title": "Script 48", "desc": "Sentences 377-384", "items": ["Give the baby two and a half mils of Calpol for the fever — repeat every four hours if needed.", "The paracetamol syrup is safe for babies from three months old and works well for fever and teething pain.", "Dissolve an Efferflu C tablet in water and drink it — it has vitamin C and flu-relief ingredients.", "This effervescent cold and flu tablet is convenient and easy to take when you're feeling under the weather.", "Apply the Repivate cream to the inflamed area once a day — a thin layer only.", "The betamethasone valerate cream is a medium-strength steroid — use it for no more than two weeks.", "The Tramazac Co has tramadol and paracetamol together — one tablet every six hours for severe pain.", "This tramadol-paracetamol combination is a step up from regular painkillers for more severe pain."]}, {"id": 49, "title": "Script 49", "desc": "Sentences 385-392", "items": ["I'm giving you Ranceph for the chest infection — take it twice a day for seven days.", "The cephalexin is a first-generation cephalosporin antibiotic that works well for skin and respiratory infections.", "Take the Sinupret Forte tablets twice a day — the herbal combination helps with sinusitis.", "The Sinupret Plus tablets are the higher-strength version of the standard Sinupret formula.", "The Arcoxia is for your arthritis — take ninety milligrams once a day with or without food.", "The etoricoxib is a selective COX-2 inhibitor so it's safer for patients who have had stomach ulcers.", "I'm prescribing Ceroxim for the chest infection — it's a cephalosporin antibiotic.", "The cefuroxime is particularly good for respiratory and ear infections."]}, {"id": 50, "title": "Script 50", "desc": "Sentences 393-400", "items": ["Take the Sinupret Plus three times a day for the sinus congestion and inflammation.", "The Sinupret Forte is the tablet form while the Plus comes as a coated tablet — same herbal combination.", "Take the Adco-Mefenamic Acid for the period pain — start it the day before your cycle.", "The mefenamic acid also reduces heavy menstrual bleeding, not just the pain.", "Take a Myprodol for the pain — it has ibuprofen, paracetamol, and codeine together.", "This triple-combination painkiller is very effective for moderate to severe pain.", "The Epitec is for your epilepsy — we increase the dose very slowly to avoid a rash.", "The lamotrigine dose must be titrated up slowly — a fast increase can cause a serious skin reaction."]}];
+
+let selectedLanguage=null,selectedScript=null,mediaRecorder=null,audioChunks=[],timerInterval=null,seconds=0,isRecording=false,audioBlob=null;
+
+
+document.getElementById('speakerName').addEventListener('input',function(){
+  const ok=this.value.trim().length>0;
+  document.getElementById('langCard').classList.toggle('disabled',!ok);
+  setProgress('prog-name',ok?'done':'active');
+  setProgress('prog-lang',ok?'active':'');
+  if(!ok){
+    setProgress('prog-script','');
+    setProgress('prog-record','');
+    document.getElementById('scriptCard').classList.add('disabled');
+    document.getElementById('recordCard').classList.add('disabled');
+    selectedLanguage=null;
+    selectedScript=null;
+    document.querySelectorAll('.lang-btn').forEach(b=>b.classList.remove('selected'));
+    clearSelectionHighlights();
+    document.getElementById('scriptDisplay').style.display='none';
+  }
+  updateFilename();
+});
+
+function setProgress(id,state){const el=document.getElementById(id);el.classList.remove('done','active');if(state)el.classList.add(state);}
+
+function clearSelectionHighlights(){document.querySelectorAll('.script-item').forEach(i=>i.classList.remove('selected'));}
+
+
+function selectLanguage(btn){
+  document.querySelectorAll('.lang-btn').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected');
+  selectedLanguage=btn.dataset.lang;
+  selectedScript=null;
+  renderScripts();
+  document.getElementById('scriptCard').classList.remove('disabled');
+  document.getElementById('recordCard').classList.add('disabled');
+  document.getElementById('scriptDisplay').style.display='none';
+  resetRecorder();
+  setProgress('prog-lang','done');setProgress('prog-script','active');setProgress('prog-record','');
+  updateFilename();
+}
+
+function renderScripts(){
+  const list=document.getElementById('scriptList');
+  list.innerHTML='';
+  const source = SENTENCE_SCRIPTS;
+
+  source.forEach(s=>{
+    const el=document.createElement('div');
+    el.className='script-item';
+    el.onclick=()=>selectScript(el,s);
+    const tag = `S${String(s.id).padStart(2,'0')}`;
+    const desc = s.desc;
+    el.innerHTML=`<span class="script-num">${tag}</span><div class="script-info"><div class="script-title">${s.title}</div><div class="script-desc">${desc}</div></div>`;
+    list.appendChild(el);
+  });
+}
+
+function renderDisplayContent(){
+  const display=document.getElementById('scriptDisplay');
+  const label=document.getElementById('displayLabel');
+  const title=document.getElementById('displayTitle');
+  const subtitle=document.getElementById('displaySubtitle');
+  const body=document.getElementById('scriptReadText');
+
+  if(!selectedScript){
+    display.style.display='none';
+    body.innerHTML='';
+    return;
+  }
+
+  display.style.display='block';
+
+  label.textContent='Read these sentences aloud';
+  title.textContent=selectedScript.title;
+  subtitle.textContent=(selectedScript.desc ? `${selectedScript.desc} • ` : '') + 'Read all 8 sentences clearly and naturally, in order.';
+  body.innerHTML=`<ol class="med-word-list">${selectedScript.items.map(item=>`<li class="med-word"><span class="med-word-text">${item}</span></li>`).join('')}</ol>`;
+}
+
+function selectScript(el,s){
+  clearSelectionHighlights();
+  el.classList.add('selected');
+  selectedScript=s;
+  document.getElementById('recordCard').classList.remove('disabled');
+  renderDisplayContent();
+  setProgress('prog-script','done');setProgress('prog-record','active');
+  resetRecorder();updateFilename();
+}
+
+function buildFilename(){
+  const name=(document.getElementById('speakerName').value.trim()||'speaker').replace(/\s+/g,'_').replace(/[^a-zA-Z0-9_]/g,'').toLowerCase();
+  const modePart = 'sentences';
+  const itemPrefix = 'script';
+  const itemId = selectedScript ? String(selectedScript.id).padStart(2,'0') : 'XX';
+  return `${selectedLanguage||'lang'}_${modePart}_${itemPrefix}${itemId}_${name}.wav`;
+}
+function updateFilename(){document.getElementById('filenameDisplay').textContent=buildFilename();}
+
+async function toggleRecording(){isRecording?stopRecording():await startRecording();}
+
+async function startRecording(){
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    audioChunks=[];mediaRecorder=new MediaRecorder(stream);
+    mediaRecorder.ondataavailable=e=>{if(e.data.size>0)audioChunks.push(e.data);};
+    mediaRecorder.onstop=handleStop;mediaRecorder.start(100);isRecording=true;
+    document.getElementById('recordBtn').classList.add('recording');
+    document.getElementById('waveform').classList.add('recording');
+    document.getElementById('recordHint').textContent='Recording… Press to stop';
+    document.getElementById('playbackSection').classList.remove('visible');
+    document.getElementById('statusMsg').className='status-msg';
+    seconds=0;updateTimer();
+    timerInterval=setInterval(()=>{seconds++;updateTimer();},1000);
+    document.getElementById('timer').classList.add('active');
+  }catch(e){showStatus('Microphone access denied. Please allow microphone access and try again.','error');}
+}
+
+function stopRecording(){
+  if(mediaRecorder&&mediaRecorder.state!=='inactive'){mediaRecorder.stop();mediaRecorder.stream.getTracks().forEach(t=>t.stop());}
+  clearInterval(timerInterval);isRecording=false;
+  document.getElementById('recordBtn').classList.remove('recording');
+  document.getElementById('waveform').classList.remove('recording');
+  document.getElementById('recordHint').textContent='Press to record again';
+  document.getElementById('timer').classList.remove('active');
+}
+
+function handleStop(){
+  audioBlob=new Blob(audioChunks,{type:'audio/webm'});
+  document.getElementById('audioPlayback').src=URL.createObjectURL(audioBlob);
+  document.getElementById('playbackSection').classList.add('visible');
+  updateFilename();showStatus('Recording complete! Preview above then save.','success');
+}
+
+function resetRecorder(){
+  if(isRecording)stopRecording();
+  audioBlob=null;audioChunks=[];seconds=0;updateTimer();
+  document.getElementById('playbackSection').classList.remove('visible');
+  document.getElementById('statusMsg').className='status-msg';
+  document.getElementById('recordHint').textContent='Press to start recording';
+  document.getElementById('timer').classList.remove('active');
+}
+
+function updateTimer(){const m=String(Math.floor(seconds/60)).padStart(2,'0'),s=String(seconds%60).padStart(2,'0');document.getElementById('timer').textContent=`${m}:${s}`;}
+
+async function saveRecording(){
+  if(!audioBlob)return;
+  try{
+    const ctx=new AudioContext(),decoded=await ctx.decodeAudioData(await audioBlob.arrayBuffer());
+    const wav=encodeWAV(decoded),url=URL.createObjectURL(new Blob([wav],{type:'audio/wav'}));
+    const a=document.createElement('a');a.href=url;a.download=buildFilename();a.click();URL.revokeObjectURL(url);
+    showStatus(`Saved as "${buildFilename()}"`, 'success');
+  }catch(e){
+    const url=URL.createObjectURL(audioBlob),a=document.createElement('a');
+    a.href=url;a.download=buildFilename();a.click();URL.revokeObjectURL(url);
+    showStatus(`Saved as "${buildFilename()}"`, 'success');
+  }
+}
+
+function encodeWAV(buf){
+  const nc=buf.numberOfChannels,sr=buf.sampleRate,ch=[];
+  for(let c=0;c<nc;c++)ch.push(buf.getChannelData(c));
+  const len=ch[0].length,interleaved=new Float32Array(len*nc);
+  for(let i=0;i<len;i++)for(let c=0;c<nc;c++)interleaved[i*nc+c]=ch[c][i];
+  const dl=interleaved.length*2,ab=new ArrayBuffer(44+dl),v=new DataView(ab);
+  const ws=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i));};
+  ws(0,'RIFF');v.setUint32(4,36+dl,true);ws(8,'WAVE');ws(12,'fmt ');
+  v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,nc,true);
+  v.setUint32(24,sr,true);v.setUint32(28,sr*nc*2,true);v.setUint16(32,nc*2,true);v.setUint16(34,16,true);
+  ws(36,'data');v.setUint32(40,dl,true);
+  let off=44;
+  for(let i=0;i<interleaved.length;i++,off+=2){const s=Math.max(-1,Math.min(1,interleaved[i]));v.setInt16(off,s<0?s*0x8000:s*0x7FFF,true);}
+  return ab;
+}
+
+function showStatus(msg,type){const el=document.getElementById('statusMsg');el.textContent=msg;el.className=`status-msg ${type}`;}
+resetSelectionTabs();
+</script>
+</body>
+</html>
